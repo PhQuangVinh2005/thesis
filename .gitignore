@@ -37,3 +37,4 @@ Thumbs.db
 *.bin
 *.safetensors
 *.gguf
+*.ckpt
