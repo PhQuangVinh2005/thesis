@@ -1,0 +1,29 @@
+# SummaC evaluation environment
+#
+# Setup:
+#   conda create -n eval_summac python=3.11 -y
+#   conda activate eval_summac
+#   pip install torch --index-url https://download.pytorch.org/whl/cu130
+#   pip install -r requirements-summac.txt
+#   pip install --no-deps summac
+#   python -m spacy download en_core_web_sm
+#   python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
+#
+# Verify:
+#   python -c "from summac.model_summac import SummaCZS; print('OK')"
+
+# Versions pinned to what summac 0.0.4 expects
+transformers==4.30.0
+huggingface-hub==0.17.0
+nltk==3.6.6
+sentencepiece
+protobuf<=3.20
+tokenizers
+
+# NLP tools
+spacy>=3.0.0
+
+# Shared deps (needed by run_evaluation.py)
+pyyaml>=6.0
+tqdm>=4.65.0
+numpy<2.0
