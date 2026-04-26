@@ -1,0 +1,16 @@
+# --- Quan trọng ---
+backend: "transformers"
+model_name: "BioMistral/BioMistral-7B-SLERP"
+torch_dtype: "float16"
+device: "auto"
+quantization: "8bit"             # 8-bit để fit 16GB VRAM
+
+# --- Generation ---
+generation:
+  max_tokens: 1024
+  temperature: 0.1
+  top_p: 0.95
+
+# --- Model constraints ---
+model_params:
+  max_model_len: 12288

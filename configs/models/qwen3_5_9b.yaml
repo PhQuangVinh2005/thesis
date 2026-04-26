@@ -1,0 +1,14 @@
+# --- Quan trọng ---
+backend: "ollama"
+model_name: "qwen3.5:9b"
+base_url: "http://localhost:11434"
+
+# --- Generation ---
+generation:
+  max_tokens: 1024
+  temperature: 0.1
+  top_p: 0.95
+
+# --- Model constraints ---
+model_params:
+  num_ctx: 12288

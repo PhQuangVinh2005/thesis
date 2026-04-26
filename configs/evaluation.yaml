@@ -1,0 +1,18 @@
+# Evaluation config — metric params centralized here
+# Used by: scripts/run_evaluation.py
+
+completeness:   # P vs L — measures omission
+  metrics: [rouge, bleu, bertscore, medcon]
+  bertscore_model: "microsoft/deberta-xlarge-mnli"
+  medcon_model: "en_core_sci_lg"
+
+faithfulness:   # P vs C — measures hallucination
+  metrics: [summac, alignscore]
+  summac:
+    granularity: "sentence"
+    model_name: "vitc"
+    device: "auto"       # cu130 torch supports Blackwell sm_120
+  alignscore:
+    checkpoint: "models/AlignScore-large.ckpt"
+    evaluation_mode: "nli_sp"
+    device: "auto"       # cu130 torch supports Blackwell sm_120

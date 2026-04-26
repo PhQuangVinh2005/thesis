@@ -1,0 +1,22 @@
+# fewshot_5 experiment — biomistral7b_slerp
+experiment_name: "fewshot_5_biomistral7b_slerp"
+model_config: "models/biomistral_7b_slerp.yaml"
+prompt_config: "prompts/fewshot.yaml"
+
+technique:
+  name: "fewshot"
+  examples_file: "data/processed/golden_fewshot_examples.json"
+  indices: [6, 8, 52, 20, 56]
+
+data:
+  data_dir: "data/processed/mimic_iv_bhc"
+  ranges: ["0_1k", "1k_2k", "2k_4k"]
+  sample_size: 500
+  sample_seed: 42
+
+generation:
+  save_every: 10
+
+output:
+  dir: "outputs/fewshot_5/biomistral7b_slerp/"
+  predictions_file: "predictions.jsonl"

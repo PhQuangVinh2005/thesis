@@ -1,0 +1,17 @@
+# BioMistral-7B-SLERP baseline experiment
+experiment_name: "biomistral7b_slerp"
+model_config: "models/biomistral_7b_slerp.yaml"
+prompt_config: "prompts/baseline.yaml"
+
+data:
+  data_dir: "data/processed/mimic_iv_bhc"
+  ranges: ["0_1k", "1k_2k", "2k_4k"]
+  sample_size: 500
+  sample_seed: 42
+
+generation:
+  save_every: 10
+
+output:
+  dir: "outputs/baseline/biomistral7b_slerp/"
+  predictions_file: "predictions.jsonl"

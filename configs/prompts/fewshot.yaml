@@ -1,0 +1,13 @@
+# Few-shot summarization prompt — base instruction
+# Examples are injected by FewShotTechnique, not in this template.
+name: "fewshot_summarize"
+template: |
+  You are an expert medical professional specializing in clinical documentation.
+
+  Summarize the following clinical notes into a concise Brief Hospital Course. Focus only on clinically significant events, diagnoses, and treatments. Ensure the summary is technically accurate and uses professional medical terminology.
+
+  Strictly adhere to the provided context. If a piece of information is not explicitly stated in the input text, do not include it. Avoid inferring results or patient outcomes.
+
+  Below are examples of faithful summaries that only contain information from their source context:
+
+  {context}

@@ -1,0 +1,22 @@
+# fewshot_10 experiment — qwen3_5_2b
+experiment_name: "fewshot_10_qwen3_5_2b"
+model_config: "models/qwen3_5_2b.yaml"
+prompt_config: "prompts/fewshot.yaml"
+
+technique:
+  name: "fewshot"
+  examples_file: "data/processed/golden_fewshot_examples.json"
+  indices: [6, 8, 52, 20, 56, 34, 76, 87, 3, 7]
+
+data:
+  data_dir: "data/processed/mimic_iv_bhc"
+  ranges: ["0_1k", "1k_2k", "2k_4k"]
+  sample_size: 500
+  sample_seed: 42
+
+generation:
+  save_every: 10
+
+output:
+  dir: "outputs/fewshot_10/qwen3_5_2b/"
+  predictions_file: "predictions.jsonl"

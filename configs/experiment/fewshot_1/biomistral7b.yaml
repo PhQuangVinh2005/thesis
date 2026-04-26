@@ -1,0 +1,22 @@
+# fewshot_1 experiment — biomistral7b
+experiment_name: "fewshot_1_biomistral7b"
+model_config: "models/biomistral_7b.yaml"
+prompt_config: "prompts/fewshot.yaml"
+
+technique:
+  name: "fewshot"
+  examples_file: "data/processed/golden_fewshot_examples.json"
+  indices: [36]
+
+data:
+  data_dir: "data/processed/mimic_iv_bhc"
+  ranges: ["0_1k", "1k_2k", "2k_4k"]
+  sample_size: 500
+  sample_seed: 42
+
+generation:
+  save_every: 10
+
+output:
+  dir: "outputs/fewshot_1/biomistral7b/"
+  predictions_file: "predictions.jsonl"

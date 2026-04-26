@@ -1,0 +1,17 @@
+# Qwen3.5-4B baseline experiment
+experiment_name: "qwen3_5_4b"
+model_config: "models/qwen3_5_4b.yaml"
+prompt_config: "prompts/baseline.yaml"
+
+data:
+  data_dir: "data/processed/mimic_iv_bhc"
+  ranges: ["0_1k", "1k_2k", "2k_4k"]
+  sample_size: 500
+  sample_seed: 42
+
+generation:
+  save_every: 10
+
+output:
+  dir: "outputs/baseline/qwen3_5_4b/"
+  predictions_file: "predictions.jsonl"
