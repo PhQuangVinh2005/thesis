@@ -1,0 +1,23 @@
+# CoVe experiment — biomistral7b_slerp
+experiment_name: "cove_biomistral7b_slerp"
+model_config: "models/biomistral_7b_slerp.yaml"
+prompt_config: "prompts/baseline.yaml"
+
+technique:
+  name: "cove"
+  plan_prompt: "prompts/cove_plan.yaml"
+  verify_refine_prompt: "prompts/cove_verify_refine.yaml"
+  n_questions: 5
+
+data:
+  data_dir: "data/processed/mimic_iv_bhc"
+  ranges: ["0_1k", "1k_2k", "2k_4k"]
+  sample_size: 500
+  sample_seed: 42
+
+generation:
+  save_every: 10
+
+output:
+  dir: "outputs/cove/biomistral7b_slerp/"
+  predictions_file: "predictions.jsonl"

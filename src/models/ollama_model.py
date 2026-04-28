@@ -1,8 +1,7 @@
 """Ollama LLM implementation — communicates via REST API."""
 
-import gc
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 import requests
 

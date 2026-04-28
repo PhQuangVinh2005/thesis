@@ -42,6 +42,13 @@ class SummarizationPipeline:
         )
         if hasattr(self.technique, "last_prompt_instruction"):
             sample.instruction = self.technique.last_prompt_instruction
+        # Persist CoVe intermediate outputs for debugging/thesis analysis
+        if hasattr(self.technique, "last_draft"):
+            sample.metadata["cove_draft"] = self.technique.last_draft
+        if hasattr(self.technique, "last_questions"):
+            sample.metadata["cove_questions"] = self.technique.last_questions
+        if hasattr(self.technique, "last_verification"):
+            sample.metadata["cove_raw_verification"] = self.technique.last_verification
         return sample
 
     def run(

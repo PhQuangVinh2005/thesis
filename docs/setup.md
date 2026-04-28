@@ -81,3 +81,25 @@ conda activate vinhthesis
 python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, GPU: {torch.cuda.get_device_name(0)}')"
 python -m pytest tests/ -v
 ```
+
+## GPU Memory Guide
+
+| Model | Backend | VRAM | Notes |
+|-------|---------|------|-------|
+| Qwen3.5-2B | Ollama | ~2.5 GB | Ollama manages VRAM via `keep_alive` |
+| Qwen3.5-4B | Ollama | ~5 GB | |
+| Qwen3.5-9B | Ollama | ~10 GB | |
+| BioMistral-7B | Transformers | ~10 GB | 8-bit quantization via bitsandbytes |
+| BioMistral-7B-SLERP | Transformers | ~10 GB | 8-bit quantization via bitsandbytes |
+
+**Important**: Models are loaded once per experiment run. The experiment runner uses `keep_alive=-1` for Ollama models to prevent mid-run unloading. GPU memory is released via `cleanup()` after each experiment completes.
+
+## Experiment Runtime Estimates
+
+| Technique | Model | Samples | Est. Time |
+|-----------|-------|---------|-----------|
+| Baseline | Qwen3.5-2B | 500×3 | ~2 hours |
+| Baseline | BioMistral-7B | 500×3 | ~8 hours |
+| Few-Shot (10) | Qwen3.5-9B | 500×3 | ~6 hours |
+| CoVe | Qwen3.5-2B | 500×3 | ~6 hours (3× baseline) |
+| CoVe | Qwen3.5-9B | 500×3 | ~12 hours (3× baseline) |

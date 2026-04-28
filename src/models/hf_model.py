@@ -56,7 +56,7 @@ class TransformersModel(BaseLLM):
             quantization_config = BitsAndBytesConfig(load_in_8bit=True)
             logger.info("8-bit quantization enabled")
 
-        self.tokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer = AutoTokenizer.from_pretrained(  # nosec B615
             model_name, trust_remote_code=True,
         )
         if self.tokenizer.pad_token is None:
@@ -85,7 +85,28 @@ class TransformersModel(BaseLLM):
         else:
             load_kwargs["dtype"] = resolved_dtype
 
-        self.model = AutoModelForCausalLM.from_pretrained(**load_kwargs)
+        # Try loading — fall back if flash_attention_2 is incompatible with model
+        try:
+            self.model = AutoModelForCausalLM.from_pretrained(**load_kwargs)  # nosec B615
+        except (ImportError, ValueError) as e:
+            if self._attn_impl != "eager":
+                logger.warning(f"Flash Attention failed for {model_name}: {e}. Falling back to eager.")
+                self._attn_impl = "eager"
+                load_kwargs["attn_implementation"] = "eager"
+                try:
+                    self.model = AutoModelForCausalLM.from_pretrained(**load_kwargs)  # nosec B615
+                except OSError:
+                    # Some repos only have pytorch_model.bin, no safetensors
+                    logger.warning(f"Safetensors not found for {model_name}, using pytorch format.")
+                    load_kwargs["use_safetensors"] = False
+                    self.model = AutoModelForCausalLM.from_pretrained(**load_kwargs)  # nosec B615
+            else:
+                raise
+        except OSError:
+            # Some repos only have pytorch_model.bin, no safetensors
+            logger.warning(f"Safetensors not found for {model_name}, using pytorch format.")
+            load_kwargs["use_safetensors"] = False
+            self.model = AutoModelForCausalLM.from_pretrained(**load_kwargs)  # nosec B615
         self.model.eval()
 
         logger.info(f"TransformersModel ready: {model_name} | dtype={self.model.dtype}")

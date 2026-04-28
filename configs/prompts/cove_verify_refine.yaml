@@ -1,0 +1,28 @@
+name: "cove_verify_refine"
+description: "Answer verification questions from source only, then write corrected summary"
+template: |
+  You are an expert medical professional. Your task has two parts.
+
+  PART 1 — VERIFICATION:
+  Answer each verification question below using ONLY the source medical record. Do not use any outside knowledge or assumptions.
+
+  For each question, respond with one of:
+  - CONFIRMED: [quote or evidence from the source]
+  - CONTRADICTED: [what the source actually says]
+  - UNVERIFIABLE: [this information is not present in the source]
+
+  Source medical record:
+  {context}
+
+  Verification questions:
+  {questions}
+
+  PART 2 — CORRECTED SUMMARY:
+  Based on your verification answers above, write a concise Brief Hospital Course summary of the source medical record. Follow these rules:
+  - Include ONLY information that is CONFIRMED in the source
+  - Correct any claims that were CONTRADICTED
+  - Omit any claims that were UNVERIFIABLE
+  - Use professional medical terminology
+  - Focus on clinically significant events, diagnoses, and treatments
+
+  Corrected summary:

@@ -1,0 +1,22 @@
+name: "cove_plan"
+description: "Generate verification questions about clinical claims in a draft summary"
+template: |
+  You are a clinical fact-checker reviewing a draft summary of a medical record.
+
+  Your task: Generate exactly {n_questions} verification questions about specific clinical claims made in the draft summary below. Each question should target a factual claim that can be checked against the source medical record.
+
+  Focus on:
+  - Diagnoses and medical conditions mentioned
+  - Medications, dosages, and administration routes
+  - Procedures and treatments performed
+  - Lab results, vital signs, and clinical measurements
+  - Temporal claims (dates, sequences, durations)
+  - Patient outcomes and discharge information
+
+  Draft summary:
+  {draft}
+
+  Source medical record:
+  {context}
+
+  Generate exactly {n_questions} verification questions, numbered 1 through {n_questions}. Each question should be specific and answerable from the source text.

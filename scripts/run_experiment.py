@@ -61,6 +61,13 @@ TECHNIQUE_CONFIGS = {
         "configs/experiment/fewshot_10/biomistral7b.yaml",
         "configs/experiment/fewshot_10/biomistral7b_slerp.yaml",
     ],
+    "cove": [
+        "configs/experiment/cove/qwen3_5_2b.yaml",
+        "configs/experiment/cove/qwen3_5_4b.yaml",
+        "configs/experiment/cove/qwen3_5_9b.yaml",
+        "configs/experiment/cove/biomistral7b.yaml",
+        "configs/experiment/cove/biomistral7b_slerp.yaml",
+    ],
 }
 # ───────────────────────────────────────────────────────────────────────
 
@@ -82,6 +89,7 @@ from src.prompts.templates import PromptTemplate
 from src.pipelines.summarizer import SummarizationPipeline
 from src.techniques.baseline import BaselineTechnique
 from src.techniques.fewshot import FewShotTechnique
+from src.techniques.cove import CoVeTechnique
 from src.utils.io import load_yaml, save_json
 
 logging.basicConfig(
@@ -124,6 +132,19 @@ def create_technique(config: dict, prompt_template: PromptTemplate):
             examples_file=examples_file,
             indices=indices,
             instruction=instruction,
+        )
+    elif name == "cove":
+        configs_dir = str(PROJECT_ROOT / "configs")
+        plan_template = PromptTemplate.from_yaml(
+            _resolve_path(configs_dir, tech_cfg["plan_prompt"])
+        )
+        verify_refine_template = PromptTemplate.from_yaml(
+            _resolve_path(configs_dir, tech_cfg["verify_refine_prompt"])
+        )
+        return CoVeTechnique(
+            plan_template=plan_template,
+            verify_refine_template=verify_refine_template,
+            n_questions=tech_cfg.get("n_questions", 5),
         )
     else:
         raise ValueError(f"Unknown technique: {name}")

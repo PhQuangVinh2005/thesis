@@ -13,9 +13,19 @@ This thesis tests hallucination reduction techniques and measures their effectiv
 
 ```
 BaseLLM        → TransformersModel (BioMistral)  |  OllamaModel (Qwen3.5)
-BaseTechnique  → BaselineTechnique  |  FewShotTechnique  |  (future: CoVe)
+BaseTechnique  → BaselineTechnique  |  FewShotTechnique  |  CoVeTechnique
 BaseMetric     → ROUGE/BLEU/BERTScore/MEDCON  |  SummaC/AlignScore
 ```
+
+### CoVe Pipeline (3 LLM calls per sample)
+
+```
+Step 1 — DRAFT:          baseline prompt → initial summary (may hallucinate)
+Step 2 — PLAN:           draft + context → N verification questions
+Step 3 — VERIFY+REFINE:  context + questions only (no draft) → verified summary
+```
+
+Design: **Option C** — plan sees draft, verify+refine does NOT see draft (prevents leakage).
 
 ## Environment
 
@@ -28,12 +38,15 @@ BaseMetric     → ROUGE/BLEU/BERTScore/MEDCON  |  SummaC/AlignScore
 ## Key Paths
 
 | Path | Purpose |
-|------|---------|
+|------|---------  |
 | `src/models/` | LLM backends (factory, base, hf_model, ollama_model) |
-| `src/techniques/` | Hallucination reduction (base, baseline, fewshot) |
-| `src/pipelines/` | Summarization orchestration |
+| `src/techniques/` | Hallucination reduction (base, baseline, fewshot, cove) |
+| `src/techniques/cove.py` | CoVe: 3-step draft→plan→verify+refine with regex extraction |
+| `src/pipelines/summarizer.py` | Summarization orchestration + CoVe metadata persistence |
 | `src/evaluation/` | Metrics (completeness + faithfulness) |
 | `src/data/schema.py` | Core data types (EvalSample) |
+| `configs/experiment/cove/` | CoVe experiment configs (Qwen only) |
+| `configs/prompts/cove_*.yaml` | CoVe prompt templates (plan + verify_refine) |
 | `configs/` | YAML configs (models, experiments, prompts, eval) |
 | `requirements/` | Dependency files (main, summac, align) |
 | `docs/` | Setup, experiments, evaluation, architecture, known issues |
@@ -45,3 +58,6 @@ BaseMetric     → ROUGE/BLEU/BERTScore/MEDCON  |  SummaC/AlignScore
 - Config-driven: swap model/prompt/technique via YAML
 - Lazy imports for heavy deps (torch, evaluation metrics)
 - 3 conda envs due to irreconcilable SummaC/AlignScore deps
+- CoVe intermediate outputs (draft, questions, raw verification) persisted in JSONL metadata
+- CoVe only runs on Qwen models (BioMistral lacks instruction-following for multi-step verification)
+- HF model loader gracefully falls back: flash_attention_2 → eager, safetensors → pytorch_model.bin
