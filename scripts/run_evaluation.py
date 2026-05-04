@@ -154,10 +154,11 @@ def evaluate_single_file(
     phase: str = "completeness",
     scores_file_override: str | None = None,
     summary_file_override: str | None = None,
+    output_dir_override: str | None = None,
 ) -> None:
     """Evaluate a single predictions.jsonl file."""
     pred_path = Path(predictions_path)
-    output_dir = str(pred_path.parent)
+    output_dir = output_dir_override if output_dir_override else str(pred_path.parent)
 
     logger.info(f"Loading predictions: {pred_path}")
     records = load_jsonl(str(pred_path))
@@ -229,6 +230,7 @@ def parse_args():
     parser.add_argument("--metrics", nargs="+", default=None, help="Metrics to run (default: all for phase)")
     parser.add_argument("--scores-file", type=str, default=None, help="Override output scores filename")
     parser.add_argument("--summary-file", type=str, default=None, help="Override output summary filename")
+    parser.add_argument("--output-dir", type=str, default=None, help="Override output directory (default: same as predictions)")
     return parser.parse_args()
 
 
@@ -267,6 +269,7 @@ def main():
             args.predictions, pipeline, args.max_samples, args.phase,
             scores_file_override=args.scores_file,
             summary_file_override=args.summary_file,
+            output_dir_override=args.output_dir,
         )
     else:
         exp_dir = Path(args.experiment_dir)
@@ -281,10 +284,15 @@ def main():
             logger.info(f"\n{'='*60}")
             logger.info(f"Evaluating: {pred_file}")
             logger.info(f"{'='*60}")
+            # When --output-dir is set with --experiment-dir, mirror the range_* structure
+            out_dir = None
+            if args.output_dir:
+                out_dir = str(Path(args.output_dir) / pred_file.parent.name)
             evaluate_single_file(
                 str(pred_file), pipeline, args.max_samples, args.phase,
                 scores_file_override=args.scores_file,
                 summary_file_override=args.summary_file,
+                output_dir_override=out_dir,
             )
 
     logger.info("✓ Evaluation complete!")

@@ -1,6 +1,7 @@
 # Reducing Hallucinations in Clinical Text Summarization
 
 Bachelor thesis — LLM-generated clinical text summarization with hallucination reduction techniques.
+**Novel contribution**: Severity-Weighted DPO (SW-DPO) — per-sample margins from expert hallucination categories.
 
 ## Quick Start
 
@@ -69,7 +70,8 @@ thesis/
 | LLM Inference | HuggingFace Transformers + Ollama |
 | Models | BioMistral-7B (variants), Qwen3.5-2B/4B/9B |
 | Quantization | bitsandbytes 8-bit / Q8_0 GGUF |
-| Techniques | Baseline (zero-shot), Few-Shot (1/5/10), CoVe (3-step) |
+| Techniques | Baseline (zero-shot), Few-Shot (1/5/10), CoVe (3-step), SFT+DPO, **SW-DPO** |
+| Finetuning | Unsloth + QLoRA + TRL (DPOTrainer subclass) |
 | Evaluation | ROUGE/BLEU/BERTScore/MEDCON + SummaC/AlignScore |
 | GPU | NVIDIA RTX 5060 Ti 16GB (Blackwell, CUDA 13.0) |
 | PyTorch | cu130, Flash Attention 3 |
@@ -79,9 +81,12 @@ thesis/
 
 - [x] Baseline experiments (5 models × 3 ranges)
 - [x] Few-shot experiments (1/5/10-shot × 5 models × 3 ranges)
-- [x] Faithfulness evaluation (baseline)
-- [ ] CoVe experiments (3 Qwen models × 3 ranges — BioMistral excluded, see [Known Issues](docs/known-issues.md))
-- [ ] Faithfulness evaluation (few-shot)
-- [ ] Faithfulness evaluation (CoVe)
-- [ ] Completeness evaluation
-- [ ] Results analysis & comparison (Baseline vs Few-Shot vs CoVe)
+- [x] Faithfulness evaluation (baseline + few-shot + CoVe)
+- [x] CoVe experiments (3 Qwen models × 3 ranges — BioMistral excluded, see [Known Issues](docs/known-issues.md))
+- [x] Completeness evaluation (ROUGE/BLEU/BERTScore/MEDCON)
+- [x] Golden DPO dataset built (100 expert pairs, nested 10 ⊂ 50 ⊂ 100)
+- [ ] SFT training (domain adaptation on MIMIC-IV-BHC)
+- [ ] DPO-Uniform training (3-way size ablation: 10/50/100 pairs)
+- [ ] **SW-DPO training (3-way severity ablation: Uniform/Binary/Severity)** ⭐
+- [ ] Combined SW-DPO + CoVe stacking
+- [ ] Results analysis & comparison
