@@ -1,0 +1,23 @@
+# ── vLLM inference environment ────────────────────────────────────────
+#
+# Setup (run once):
+#   conda create -n vllm python=3.12 -y
+#   conda activate vllm
+#   pip install uv
+#   uv pip install -r requirements/vllm.txt --torch-backend=cu130
+#
+# Why cu130:
+#   - RTX 5060 Ti is Blackwell → requires CUDA ≥ 12.8
+#   - Driver 580.142 supports CUDA 13.0
+#   - vLLM provides pre-built cu130 wheels
+#
+# System requirements:
+#   - NVIDIA driver >= 535 (yours: 580.142 ✓)
+#   - CUDA driver: 13.0 capable (yours: 580.142 ✓)
+#   - Python: 3.10-3.13 (env: 3.12 ✓)
+#   - GPU: Compute Capability 7.0+ (RTX 5060 Ti ✓)
+
+vllm
+transformers>=4.45.0
+peft>=0.10.0
+tqdm

@@ -1,0 +1,21 @@
+# Finetuning environment: Unsloth + TRL + PEFT
+# Install INTO the vinhthesis env (or new env if conflicts arise):
+#
+#   conda activate vinhthesis
+#   pip install -r requirements/finetune.txt
+#
+# NOTE: PyTorch cu130 must already be installed (see requirements/main.txt header).
+# NOTE: Unsloth auto-patches transformers for 2x speedup.
+
+# Unsloth — optimized QLoRA loading & training
+unsloth
+unsloth_zoo
+
+# Training — TRL for DPO/SFT trainers
+trl>=0.15.0
+
+# PEFT — LoRA adapter management
+peft>=0.15.0
+
+# Datasets — HuggingFace datasets for training data
+datasets>=2.14.0

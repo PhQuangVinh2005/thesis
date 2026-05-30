@@ -12,6 +12,9 @@ _MODEL_REGISTRY: Dict[str, Any] = {
     "ollama": lambda: __import__(
         "src.models.ollama_model", fromlist=["OllamaModel"]
     ).OllamaModel,
+    "unsloth": lambda: __import__(
+        "src.models.unsloth_model", fromlist=["UnslothModel"]
+    ).UnslothModel,
 }
 
 
@@ -30,10 +33,8 @@ class ModelFactory:
 
         generation = config.pop("generation", {})
         model_params = config.pop("model_params", {})
-        if "max_model_len" in model_params:
-            config["max_model_len"] = model_params["max_model_len"]
-        if "num_ctx" in model_params:
-            config["num_ctx"] = model_params["num_ctx"]
+        # Merge all model_params into config (supports all backends)
+        config.update(model_params)
 
         model_cls = _MODEL_REGISTRY[backend]()
         return model_cls(**config, **generation)
