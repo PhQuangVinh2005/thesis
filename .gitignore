@@ -9,6 +9,9 @@
 # Outputs
 outputs/
 
+# Models
+models/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -39,3 +42,6 @@ Thumbs.db
 *.gguf
 *.ckpt
 *.ckpt.1
+
+# Unsloth
+/unsloth_compiled_cache

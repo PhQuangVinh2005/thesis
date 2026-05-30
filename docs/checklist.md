@@ -1,8 +1,9 @@
 # Thesis Progress — Master Checklist
 
-> Last updated: 2026-05-04 (validated against filesystem)
+> Last updated: 2026-05-30
 > Novel contribution: **Severity-Weighted DPO (SW-DPO)** — per-sample margins from expert hallucination categories
 > Use this file to resume work in a new session. Run: "Use concise-planning to read and understand codebase."
+> **Current status**: DPO/SW-DPO scripts written and debugged. Blackwell env rebuilt (`vinhthesis2`). **Next task: re-run DPO smoke test (OOM fix applied), then 12-variant ablation (Phase 4D Step 4).**
 
 ---
 
@@ -67,54 +68,155 @@
 > **Golden Dataset**: 100 expert pairs. Quality > quantity. Task mismatch (BHC→patient summary vs
 > notes→BHC) accepted — faithfulness signal transfers across clinical NLP tasks.
 
-### Phase 4B: Migrate Qwen3.5-4B to HuggingFace
+### Phase 4B: Migrate Qwen3.5-4B to HuggingFace ✅ DONE
 
-- [ ] Install Unsloth + flash-linear-attention + TRL + PEFT + bitsandbytes
-- [ ] Load Qwen3.5-4B via Unsloth (4-bit QLoRA)
-- [ ] Run 5-10 sample inference, compare quality with Ollama baseline
-- [ ] Document environment setup in `docs/setup.md`
+- [x] Write `UnslothModel` backend (`src/models/unsloth_model.py`)
+- [x] Register `"unsloth"` backend in `ModelFactory`
+- [x] Create model config: `configs/models/qwen3_5_4b_unsloth.yaml`
+- [x] Create experiment config: `configs/experiment/qwen3_5_4b_unsloth.yaml`
+- [x] Create requirements: `requirements/finetune.txt`
+- [x] Write validation script: `scripts/validate_unsloth.py`
+- [x] Update `docs/setup.md` with Unsloth setup instructions
+- [x] Install Unsloth + dependencies
+- [x] Run 5-sample validation — quality comparable to Ollama (2.03x length ratio = style difference, not quality issue)
 
-### Phase 4C: SFT Training (Stage 1)
+### Phase 4C: SFT Training (Stage 1) ✅ COMPLETE
 
-- [ ] Format MIMIC-IV-BHC as instruction-tuning dataset (messages format)
-- [ ] Write `scripts/train_sft.py`
-- [ ] Run SFT training (r=32, 3 epochs, lr=2e-4, ~3-5 hrs)
-- [ ] Save LoRA adapter: `models/qwen35_4b_sft_lora/`
-- [ ] Run SFT model inference on test set
-- [ ] Evaluate SFT model (completeness + faithfulness)
+> **Script**: `scripts/train_sft.py`
+> **Data**: `data/processed/sft/train_30k.jsonl` (extracted via `scripts/extract_sft_data.py`)
+> **Output**: `models/qwen35_4b_sft_lora/` (163MB LoRA adapter + training logs)
 
-### Phase 4D: DPO-Uniform Training (Stage 2 — Replication Baseline) — 3-way size ablation
+- [x] Write `scripts/extract_sft_data.py` with quality checks
+  - [x] Excludes 1,500 test set IDs
+  - [x] Filters target tokens (50-2000 range)
+  - [x] Caps total tokens ≤ 3800 (fits 4096 max_seq_length)
+  - [x] Post-write validation (JSON integrity + required fields)
+  - [x] tqdm progress + extraction report
+- [x] Extract 30K SFT samples → `data/processed/sft/train_30k.jsonl`
+- [x] Write `scripts/train_sft.py` with production safeguards
+  - [x] Unsloth QLoRA: r=32, alpha=64, all linear layers
+  - [x] Chat-template formatting (system + user + assistant)
+  - [x] Crash recovery: `save_strategy="steps"`, `--resume` flag, OOM-safe eval batch
+  - [x] Persistent logging: `training.log` + `training_metrics.csv` + `training_meta.json`
+  - [x] VRAM safety: `PYTORCH_CUDA_ALLOC_CONF`, `empty_cache()`, `per_device_eval_batch_size=1`
+  - [x] `load_best_model_at_end=True` (eval_loss)
+  - [x] `--dry-run` (data only) and `--dry-run-format` (data + model) modes
+- [x] Dry-run validation passed (0 samples exceeding max_seq_length)
+- [x] **SFT training complete** (94.86 hours, May 7–10)
+  - Config: 28,500 train / 1,500 eval, batch=1×16=16 effective, lr=2e-4, cosine scheduler
+  - Total: 5,346 optimizer steps (3 epochs), checkpoints every 50 steps
+  - **Final train loss: 0.973** | **Final eval loss: 0.942** (no overfitting)
+  - Loss trajectory: 3.02 → 0.97 (train), eval stable at ~0.94
+  - Output: `adapter_model.safetensors` (163MB), 5 checkpoints retained
+- [x] **LoRA merged + vLLM inference complete** (Blackwell fix: `VLLM_USE_FLASHINFER_SAMPLER=0`, `VLLM_DISABLE_FLASHINFER=1`, `attn_implementation=eager`)
+  - `outputs/baseline/qwen3_5_4b_sft/range_{0_1k,1k_2k,2k_4k}/predictions.jsonl` (500 samples each)
+  - Added `repetition_penalty=1.2` (36% of samples had severe repetition without it)
+- [ ] **🔄 Evaluate SFT model on test set (in progress)**
+  ```bash
+  # Run in order (separate envs):
+  conda activate eval_summac && python scripts/run_evaluation.py \
+      --experiment-dir outputs/baseline/qwen3_5_4b_sft/ --phase faithfulness --metrics summac
+  conda activate eval_align && python scripts/run_evaluation.py \
+      --experiment-dir outputs/baseline/qwen3_5_4b_sft/ --phase faithfulness --metrics alignscore
+  conda activate vinhthesis && python scripts/run_evaluation.py \
+      --experiment-dir outputs/baseline/qwen3_5_4b_sft/ --phase completeness
+  ```
 
-- [ ] Write `scripts/train_dpo.py` (configurable dataset size)
-- [ ] Load SFT checkpoint as base for all 3 runs
-- [ ] DPO-U run 1: 10 expert pairs → `models/qwen35_4b_dpo_uniform_10_lora/`
-- [ ] DPO-U run 2: 50 expert pairs → `models/qwen35_4b_dpo_uniform_50_lora/`
-- [ ] DPO-U run 3: 100 expert pairs → `models/qwen35_4b_dpo_uniform_100_lora/`
-- [ ] Monitor reward_accuracy per run (target: 0.65-0.85, stop if >0.90)
-- [ ] Run all 3 DPO-Uniform models on 1,500 test set (3 ranges × 500)
-- [ ] Evaluate all 3 (completeness + faithfulness)
-- [ ] Sanity check on 10 golden validation samples
+### Phase 4D: DPO Ablation Study — 12 Training Runs
 
-### Phase 4D2: SW-DPO Training (Stage 2 — Core Contribution) — 3-way severity ablation ⭐
+> **12 runs**: 2 base models × 2 methods × 3 data sizes
+> Base models: Qwen3.5-4B (base HF) and Qwen3.5-4B SFT (from `models/qwen35_4b_sft_merged/`)
+> Methods: DPO-Uniform and SW-DPO-Severity
+> Data sizes: 10, 50, 100 golden pairs (nested subsets, seed=42)
+> Full design: `docs/dpo-implementation.md`
+
+#### Step 1: Add severity scores to golden dataset
+
+- [x] Write `scripts/add_severity_to_dpo_dataset.py`
+  - [x] Load `hallucinations_mimic_di.jsonl` → build lookup: `text → list of label spans`
+  - [x] For each of 100 pairs: match by `text` field, count spans per category
+  - [x] Compute `severity_score = Σ SEVERITY_WEIGHTS[cat] × count(cat)` (0.0 if no match)
+  - [x] Normalize: `norm_severity = severity_score / max_severity_in_dataset` → [0, 1]
+  - [x] Add fields: `severity_score`, `norm_severity`, `category_counts`, `severity_margin` (= α × norm_severity with α=1.0)
+  - [x] Output: `data/processed/dpo/golden/preference_pairs_100_severity.jsonl` ✅
+  - [x] Verified: **100/100 matched**, min=0.00, max=26.50, mean=7.03, std=6.01
+        Distribution: 48 low (0-0.2), 29 moderate (0.2-0.4), 12 mid (0.4-0.6), 7 high (0.6-0.8), 4 critical (0.8+)
+
+#### Step 2: Write `scripts/train_dpo.py` (DPO-Uniform) ✅
+
+- [x] CLI flags: `--base-model {qwen35_4b,qwen35_4b_sft}`, `--n-pairs {10,50,100}`, `--output-dir`
+- [x] Load model via Unsloth `FastLanguageModel.from_pretrained()`
+  - [x] base: `"Qwen/Qwen3.5-4B"`, sft: `models/qwen35_4b_sft_merged/`
+- [x] Attach QLoRA adapters: r=32, alpha=64, all linear layers
+- [x] Load golden pairs from `data/processed/dpo/golden/preference_pairs_{n}.jsonl`
+- [x] Format dataset with chat template: `{prompt, chosen, rejected}` → HuggingFace Dataset
+- [x] TRL `DPOConfig`: beta=0.1, lr=5e-6, 1 epoch, batch=1, grad_accum=16, bf16=True
+- [x] Overfitting watchdog: logs warning if `reward_accuracy > 0.90` or `< 0.55`
+- [x] Save adapter + `training_meta.json` + `training.log` + `training_metrics.csv`
+- [x] `--dry-run` mode validated: both `qwen35_4b` and `qwen35_4b_sft` variants ✅
+- [x] Lint: Ruff ✅ Bandit ✅ MyPy ✅
+- [x] **Blackwell debugging** (May 16–18):
+  - [x] Fix Unsloth VLM detection: pop model_type from `MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES`
+  - [x] Fix VLM processor routing: pass `text_tokenizer` not processor wrapper
+  - [x] Fix OOM: `precompute_ref_log_probs=True`, `max_seq_length` 4096→2048
+  - [x] Rebuild env → `vinhthesis2` (CUDA 12.8, native cuda-toolkit)
+  - [x] Fix cuBLAS `cublasCreate` ALLOC_FAILED: pre-initialize/warm up handle early + clean `PYTORCH_CUDA_ALLOC_CONF`
+- [x] **Smoke test** (10 pairs) passed! ✅ (Completed in 88s with successful evaluation)
+
+#### Step 3: Write `scripts/train_swdpo.py` (SW-DPO) ✅
+
+- [x] Subclass TRL `DPOTrainer` → `_SWDPOTrainer`
+  - [x] Override `get_batch_loss_metrics()`: `logits = β·(chosen_logr - rejected_logr) - α·severity_margin`
+  - [x] Loss: `-logsigmoid(logits).mean()` — standard DPO form with shifted margin
+- [x] Load severity dataset from `preference_pairs_100_severity.jsonl`; slice first n for subsets
+- [x] CLI flags same as `train_dpo.py` plus `--alpha` (default 1.0; sweep {0.5, 1.0, 2.0})
+- [x] Same QLoRA config, DPOConfig hyperparams; extra CSV column: `severity/mean_margin`
+- [x] Dry-run validated: base (n=10, α=1.0) + SFT (n=100, α=2.0) ✅
+- [x] Lint: Ruff ✅ Bandit ✅ MyPy ✅
+- [x] Same Blackwell fixes as train_dpo.py applied
+- [x] **Smoke test** passed! ✅ (SW-DPO completed in 72s with evaluation metrics computed and stored)
+
+#### Step 4: Run all 12 training runs (Scaled to 5 Epochs ⭐)
+
+| Run | Model | Method | Pairs | Output adapter |
+|-----|-------|--------|-------|----------------|
+| 1 | base | DPO-Uniform | 10 | `models/qwen35_4b_base_dpo_10_lora/` |
+| 2 | base | DPO-Uniform | 50 | `models/qwen35_4b_base_dpo_50_lora/` |
+| 3 | base | DPO-Uniform | 100 | `models/qwen35_4b_base_dpo_100_lora/` |
+| 4 | base | SW-DPO | 10 | `models/qwen35_4b_base_swdpo_10_lora/` |
+| 5 | base | SW-DPO | 50 | `models/qwen35_4b_base_swdpo_50_lora/` |
+| 6 | base | SW-DPO | 100 | `models/qwen35_4b_base_swdpo_100_lora/` |
+| 7 | SFT | DPO-Uniform | 10 | `models/qwen35_4b_sft_dpo_10_lora/` |
+| 8 | SFT | DPO-Uniform | 50 | `models/qwen35_4b_sft_dpo_50_lora/` |
+| 9 | SFT | DPO-Uniform | 100 | `models/qwen35_4b_sft_dpo_100_lora/` |
+| 10 | SFT | SW-DPO | 10 | `models/qwen35_4b_sft_swdpo_10_lora/` |
+| 11 | SFT | SW-DPO | 50 | `models/qwen35_4b_sft_swdpo_50_lora/` |
+| 12 | SFT | SW-DPO | 100 | `models/qwen35_4b_sft_swdpo_100_lora/` |
+
+- [x] Configure training scripts to run **5 epochs** instead of 1 (guarantees healthy preference learning gradient budget of 5 to 35 steps under batch size 16)
+- [x] Implement post-training recursive directory sweep to automatically delete intermediate checkpoints (safely reclaiming **8.9 GB** of workspace storage)
+- [ ] Run 1-6 (base model): ~3 hrs total training (5 epochs)
+- [ ] Run 7-12 (SFT model): ~3 hrs total training (5 epochs)
+- [ ] Monitor reward_accuracy progression (expect 0.70+ convergence at step 10+)
+
+#### Step 5: Merge + Inference + Evaluation (per variant)
+
+- [ ] For each of 12 adapters: `python scripts/merge_lora.py --adapter models/<name>_lora --output models/<name>_merged`
+- [ ] For each of 12 merged models: run vLLM inference (3 ranges × 500 = 1,500 samples)
+  - `VLLM_USE_FLASHINFER_SAMPLER=0 VLLM_DISABLE_FLASHINFER=1 python scripts/run_sft_inference.py --model-dir models/<name>_merged --output-dir outputs/dpo/<name>/`
+- [ ] For each of 12 variants: run evaluation (completeness + faithfulness)
+- [ ] Sanity check on 10 golden validation samples for each variant
+- [ ] **Category-level evaluation**: breakdown errors by hallucination type (NEW metric)
+
+### Phase 4D2: SW-DPO — Core Contribution Summary ⭐
 
 > Novel contribution: Severity-conditioned margins from expert hallucination categories.
 > Plan: `docs/dpo-implementation.md` Phase E2
+> Severity weights (NCC MERP-derived): contradicted_fact=5.0, medication=4.0, condition=3.5,
+> procedure=3.0, number=3.0, time=2.0, location=2.0, name=1.5, word=1.0, other=1.0
 
-- [ ] Update `scripts/build_golden_dpo_dataset.py` to inject severity scores from `hallucinations_mimic_di.jsonl`
-  - [ ] Map 11 hallucination categories to NCC MERP severity weights
-  - [ ] Compute per-sample `severity_score` = Σ weight(category_i) × count(category_i)
-  - [ ] Normalize to [0,1] across dataset → `normalized_severity`
-  - [ ] Add `severity_score`, `normalized_severity`, `category_breakdown` to each pair
-  - [ ] Output: `data/processed/dpo/golden/preference_pairs_100_severity.jsonl`
-- [ ] Write `scripts/train_swdpo.py` (or extend train_dpo.py with --severity flag)
-  - [ ] Subclass TRL `DPOTrainer` → `SeverityWeightedDPOTrainer`
-  - [ ] Override `get_batch_loss_metrics()` to inject per-sample margin
-  - [ ] Support 3 modes: uniform (α=0), binary (α×{0,1}), severity (α×norm_sev)
-- [ ] SW-DPO-Binary: 100 pairs, margin={0,1} → `models/qwen35_4b_swdpo_binary_100_lora/`
-- [ ] SW-DPO-Severity: 100 pairs, margin=norm_sev → `models/qwen35_4b_swdpo_severity_100_lora/`
-- [ ] Sweep α ∈ {0.5, 1.0, 2.0} on validation set to select best margin strength
-- [ ] Evaluate all SW-DPO variants (completeness + faithfulness)
-- [ ] **Category-level evaluation**: breakdown errors by hallucination type (NEW metric)
+- [ ] α hyperparameter sweep: {0.5, 1.0, 2.0} on validation set (if time permits)
+- [ ] Category-level analysis: does SW-DPO specifically reduce high-severity errors more than DPO-Uniform?
 
 ### Phase 4E: Combined Methods
 
@@ -137,30 +239,103 @@
 
 | File | Purpose |
 |------|---------|
+| `CONTEXT.md` | Project overview, current state, next steps — **read first** |
 | `docs/dpo-implementation.md` | Full DPO + SW-DPO plan with loss formulations, severity weights, ablation design |
 | `docs/hallucination-methods.md` | All 14 methods evaluated with papers, decisions, rationale |
 | `docs/composite-score-analysis.md` | Empirical analysis of AlignScore/SummaC weights (60/40 justification) |
-| `docs/architecture.md` | Strategy Pattern design, data flow, model compatibility |
+| `docs/architecture.md` | Strategy Pattern design, data flow, finetuning pipeline |
 | `docs/known-issues.md` | BioMistral+CoVe incompatibility, BERTScore patches |
-| `docs/setup.md` | 3 conda envs, CUDA 13.0, Ollama setup |
-| `docs/experiments.md` | CLI reference, config mapping, output structure |
-| `docs/evaluation.md` | Two-phase evaluation (completeness + faithfulness) |
-| `data/processed/dpo/golden/dataset_stats.json` | Golden DPO dataset statistics (10/50/100 nested subsets) |
-| `data/processed/dpo/dataset_stats.json` | Auto-generated DPO dataset statistics (archived, 1,464 pairs) |
+| `docs/setup.md` | Conda env setup, CUDA, Ollama + Unsloth |
+| `scripts/train_sft.py` | SFT training — **read as reference for DPO trainer pattern** |
+| `scripts/build_golden_dpo_dataset.py` | DPO pair builder — **extend to add severity scores** |
+| `scripts/run_sft_inference.py` | vLLM inference — **reuse for DPO model inference** |
+| `scripts/run_evaluation.py` | Evaluation — **reuse for DPO evaluation** |
+| `data/processed/dpo/golden/` | Expert DPO pairs (preference_pairs_{10,50,100}.jsonl) |
+| `data/raw/medical-expert-annotations-*/hallucination_datasets/hallucinations_mimic_di.jsonl` | Severity label source |
+| `models/qwen35_4b_sft_merged/` | SFT merged model (base for SFT-DPO runs) |
+| `outputs/baseline/qwen3_5_4b_sft/` | SFT inference predictions ✅ |
+
+## Quick Reference: Key Commands
+
+```bash
+# === DPO/SW-DPO Training (use vinhthesis2 env) ===
+conda activate vinhthesis2
+
+# Smoke test (10 pairs)
+python scripts/train_dpo.py --base-model qwen35_4b --n-pairs 10 \
+    --output-dir models/test_dpo_10_lora/
+
+# Full ablation runs
+python scripts/train_dpo.py --base-model qwen35_4b --n-pairs 100 \
+    --output-dir models/qwen35_4b_base_dpo_100_lora/
+python scripts/train_dpo.py --base-model qwen35_4b_sft --n-pairs 100 \
+    --output-dir models/qwen35_4b_sft_dpo_100_lora/
+python scripts/train_swdpo.py --base-model qwen35_4b_sft --n-pairs 100 --alpha 1.0 \
+    --output-dir models/qwen35_4b_sft_swdpo_100_lora/
+
+# === SFT Evaluation ===
+conda activate eval_summac && python scripts/run_evaluation.py \
+    --experiment-dir outputs/baseline/qwen3_5_4b_sft/ --phase faithfulness --metrics summac
+conda activate eval_align && python scripts/run_evaluation.py \
+    --experiment-dir outputs/baseline/qwen3_5_4b_sft/ --phase faithfulness --metrics alignscore
+conda activate vinhthesis2 && python scripts/run_evaluation.py \
+    --experiment-dir outputs/baseline/qwen3_5_4b_sft/ --phase completeness
+
+# === DPO Inference (after training) ===
+export VLLM_USE_FLASHINFER_SAMPLER=0 VLLM_DISABLE_FLASHINFER=1
+conda activate vinhthesis2 && python scripts/merge_lora.py \
+    --adapter models/<name>_lora --output models/<name>_merged
+conda activate vllm && python scripts/run_sft_inference.py \
+    --model-dir models/<name>_merged --output-dir outputs/dpo/<name>/
+
+# === Monitor Training ===
+tail -f models/<name>_lora/training.log
+nvidia-smi
+```
 
 ## Quick Reference: Key Decisions
 
 | Decision | Reasoning | Doc |
 |----------|-----------|-----|
+| **DPO/SW-DPO 5-Epoch Scaling** | **Ensures healthy preference learning gradient budget (5–35 steps) under effective batch size 16 for small golden subsets (10-100 pairs)** | `checklist.md` Step 4 |
+| **Post-Train Checkpoint Sweep** | **Automatically wipes duplicate checkpoint subdirectories, reclaiming 8.9 GB of storage space** | `checklist.md` Step 4 |
+| **vLLM Speculative KV & M-RoPE Patches** | **Unlocks Qwen3.5-4B hybrid Mamba-Attention execution in vLLM V1 on Blackwell** | `known-issues.md` |
 | **SW-DPO over standard DPO** | **Novel contribution: severity-conditioned margins from expert annotations** | `hallucination-methods.md` #14 |
 | DPO as replication baseline | 40% medical hallucination reduction, fits 16GB | `hallucination-methods.md` #9 |
 | Golden expert pairs over auto-generated | Quality > quantity; 100 doctor-annotated hallucinations vs 1,464 metric-based pairs | `checklist.md` Phase 4A2 |
+| **SFT before DPO (30K samples)** | Domain adaptation on MIMIC-IV-BHC clinical notes; LoRA literature shows 10-30K is optimal | `checklist.md` Phase 4C |
+| max_seq_length=2048 (DPO) | Halves logits VRAM (vocab=152K); clinical summaries fit within 2048 | `train_dpo.py` |
+| max_seq_length=4096 (SFT) | 3800 token cap at extraction ensures 100% fit; covers ~96.5% of original dataset | `extract_sft_data.py` |
+| `precompute_ref_log_probs` | Pre-computes ref model logps before training; halves peak VRAM during DPO | `train_dpo.py`, `train_swdpo.py` |
+| **Fresh env (`vinhthesis2`)** | CUDA 12.8 native toolkit; no symlinks/hacks; bitsandbytes JIT works natively | `docs/setup.md` |
 | Severity weights from NCC MERP | No human annotation needed; established patient safety standard | `dpo-implementation.md` Phase E2 |
 | 3-way severity ablation | Uniform vs Binary vs Graded — isolates value of severity signal | `dpo-implementation.md` Phase E2 |
 | 3-way size ablation (10/50/100 pairs) | Nested subsets isolate effect of data scale; cleaner thesis story | `checklist.md` Phase 4D |
 | Task mismatch accepted | Faithfulness signal transfers: same domain, same phenomenon (hallucination) | `checklist.md` Phase 4A2 |
 | Composite 60/40 (AlignScore/SummaC) | AlignScore has wider range + higher model spread; 87%+ agreement across weights | `composite-score-analysis.md` |
-| Degenerate output filter (ratio > 0.5) | Prevents copy-paste outputs from being "chosen"; 446 predictions excluded | `build_dpo_dataset.py` |
 | Unsloth as training framework | 2× faster, 60% less VRAM, Qwen3.5 support confirmed | `dpo-implementation.md` |
+| XFormers (not Flash Attention) | FA2 build fails without CUDA_HOME; XFormers is functionally identical, ~10-15% slower | Runtime decision |
 | CoVe Option C | Plan sees draft; verify+refine does NOT see draft | `architecture.md` |
 | BioMistral excluded from CoVe | Cannot follow multi-step prompts (5 failure modes documented) | `known-issues.md` |
+
+## Quick Reference: SFT Training Configuration
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| Model | Qwen3.5-4B (Unsloth, 4-bit NF4) | Best balance of quality and VRAM |
+| LoRA r | 32 | Higher rank for domain adaptation |
+| LoRA alpha | 64 | 2× rank (standard ratio) |
+| Target modules | All 7 linear layers | Maximum adaptation capacity |
+| Training samples | 28,500 (95% of 30K) | Optimal for LoRA SFT |
+| Eval samples | 1,500 (5% of 30K) | Early stopping via eval_loss |
+| Epochs | 3 | Standard for domain adaptation |
+| Effective batch | 16 (1 × 16 grad accum) | Fits 16GB VRAM |
+| Learning rate | 2e-4 (cosine + 5% warmup) | Standard for QLoRA |
+| Weight decay | 0.01 | Regularization |
+| Max seq length | 4096 | Training data filtered to ≤3800 tokens (100% fit) |
+| Gradient checkpointing | Unsloth smart offload | Trades compute for VRAM |
+| Checkpoints | Every 50 optimizer steps | Crash recovery (OOM resilient) |
+| **Final train loss** | **0.973** | From 3.02 at step 10 |
+| **Final eval loss** | **0.942** | No overfitting (gap = 0.031) |
+| **Training time** | **94.86 hours** | May 7–10, 2026 |
+| **Adapter size** | **163MB** | safetensors format |
