@@ -45,3 +45,18 @@ Thumbs.db
 
 # Unsloth
 /unsloth_compiled_cache
+
+# Diagnostics & Prototyping
+scratch/
+check_qwen35.py
+random/
+
+# LaTeX auxiliary files
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.lof
+report/*.lot
+report/*.bbl
+report/*.blg
